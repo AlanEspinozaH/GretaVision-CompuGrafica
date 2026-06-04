@@ -38,3 +38,24 @@ Segmentación, morfología, componentes conectadas, métricas.
 
 ### Integrante 3
 Streamlit/interfaz, visualización, exportación, demo.
+
+
+
+
+## Dataset inicial
+
+Se preparó un conjunto inicial de imágenes para probar el pipeline de GretaVision. Las imágenes se agruparon en:
+
+| Categoría | Cantidad | Propósito |
+|---|---:|---|
+| Grietas claras | 10 | validar la detección en casos simples y muy bien definidos |
+| Textura rugosa | 6 | Evaluar la presencia de falsos positivos en superficies complejas |
+| Sombras/iluminación irregular | 6 | Analizar la robustez del sistema frente a cambios de iluminación|
+| Sin grietas | 4 | Evaluar falsas detecciones en superficies carentes de  fisuras |
+
+
+Las imágenes serán utilizadas para comparar las distintas etapas del procesamiento: imagen original, máscara binaria, overlay de detección, heatmap (cuando esté disponible) y tabla de métricas generadas por el sistema.
+
+## Enlace al drive del dataset
+
+https://drive.google.com/drive/folders/1N2xJLkMAl62NQDYl9EHbPE0ar0GBXSJO?usp=sharing 
