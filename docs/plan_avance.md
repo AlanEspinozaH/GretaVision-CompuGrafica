@@ -59,3 +59,7 @@ Las imágenes serán utilizadas para comparar las distintas etapas del procesami
 ## Enlace al drive del dataset
 
 https://drive.google.com/drive/folders/1N2xJLkMAl62NQDYl9EHbPE0ar0GBXSJO?usp=sharing 
+
+## Enlace con resultados
+
+https://drive.google.com/drive/folders/1D5nCJ3JqjvsoKuIDqwOGjIaaIVtPgEML?usp=sharing
