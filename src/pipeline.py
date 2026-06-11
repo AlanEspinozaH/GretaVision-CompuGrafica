@@ -20,6 +20,10 @@ import json
 from dataclasses import dataclass
 from typing import Dict, Tuple
 
+import os
+import glob
+
+
 import cv2
 import numpy as np
 import pandas as pd
@@ -170,6 +174,9 @@ def analyze_components(mask: np.ndarray) -> Tuple[pd.DataFrame, np.ndarray, np.n
     rows = []
     for label_id in range(1, num_labels):
         component = labels == label_id
+
+        #Obtenemos el area_px con la siguiente linea de codigo
+        #Representa el número de píxeles que pertenecen a la grieta detectada.
         area = int(stats[label_id, cv2.CC_STAT_AREA])
         x = int(stats[label_id, cv2.CC_STAT_LEFT])
         y = int(stats[label_id, cv2.CC_STAT_TOP])
@@ -285,3 +292,74 @@ def run_pipeline(rgb: np.ndarray, params: GVParams):
         "overlay": overlay,
         "heatmap": heatmap,
     }
+
+
+import os
+import glob
+
+if __name__ == "__main__":
+    # ==========================================
+    # CONFIGURACIÓN DE CARPETAS
+    # ==========================================
+    DIR_ENTRADA = "./imagenes_test"
+    DIR_SALIDA = "./resultados_pipeline"
+
+    # Crear carpeta de salida si no existe
+    os.makedirs(DIR_SALIDA, exist_ok=True)
+
+    # Inicializar los parámetros por defecto de GretaVision
+    params = GVParams()
+
+    # Buscar imágenes JPG y PNG
+    rutas_imagenes = glob.glob(os.path.join(DIR_ENTRADA, "*.jpg")) + \
+                     glob.glob(os.path.join(DIR_ENTRADA, "*.png"))
+
+    if not rutas_imagenes:
+        print(f"No se encontraron imágenes en la carpeta: {DIR_ENTRADA}")
+    else:
+        print(f"Iniciando procesamiento de {len(rutas_imagenes)} imágenes...\n")
+
+    for ruta in rutas_imagenes:
+        nombre_archivo = os.path.basename(ruta)
+        nombre_base = os.path.splitext(nombre_archivo)[0]
+        print(f"Procesando: {nombre_archivo}")
+
+        # 1. Cargar imagen
+        # OpenCV carga en BGR, pero tu pipeline exige RGB
+        bgr = cv2.imread(ruta)
+        if bgr is None:
+            print(f"  -> Error al leer {nombre_archivo}")
+            continue
+        
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+
+        # 2. Ejecutar tu pipeline
+        resultados = run_pipeline(rgb, params)
+
+        # 3. Guardar las imágenes generadas
+        # Nota: cv2.imwrite requiere BGR, por lo que convertimos las salidas RGB de vuelta a BGR
+        
+        # Original
+        cv2.imwrite(os.path.join(DIR_SALIDA, f"{nombre_base}_1_original.jpg"), bgr)
+        
+        # Preprocesada (enhanced es escala de grises, se guarda directo)
+        cv2.imwrite(os.path.join(DIR_SALIDA, f"{nombre_base}_2_preprocesada.jpg"), resultados["enhanced"])
+        
+        # Máscara limpia (clean_mask es escala de grises)
+        cv2.imwrite(os.path.join(DIR_SALIDA, f"{nombre_base}_3_mascara.jpg"), resultados["clean_mask"])
+        
+        # Overlay (Convertir de RGB a BGR para guardar)
+        overlay_bgr = cv2.cvtColor(resultados["overlay"], cv2.COLOR_RGB2BGR)
+        cv2.imwrite(os.path.join(DIR_SALIDA, f"{nombre_base}_4_overlay.jpg"), overlay_bgr)
+        
+        # Heatmap (Convertir de RGB a BGR para guardar)
+        heatmap_bgr = cv2.cvtColor(resultados["heatmap"], cv2.COLOR_RGB2BGR)
+        cv2.imwrite(os.path.join(DIR_SALIDA, f"{nombre_base}_5_heatmap.jpg"), heatmap_bgr)
+
+        # 4. Guardar Métricas en JSON usando tu función
+        json_str = metrics_to_json(resultados["metrics"], nombre_archivo, params)
+        ruta_json = os.path.join(DIR_SALIDA, f"{nombre_base}_6_metricas.json")
+        with open(ruta_json, "w", encoding="utf-8") as f:
+            f.write(json_str)
+
+        print(f"  -> ✅ Resultados guardados en {DIR_SALIDA}\n")
