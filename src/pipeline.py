@@ -362,4 +362,4 @@ if __name__ == "__main__":
         with open(ruta_json, "w", encoding="utf-8") as f:
             f.write(json_str)
 
-        print(f"  -> ✅ Resultados guardados en {DIR_SALIDA}\n")
+        print(f"  ->Resultados guardados en {DIR_SALIDA}\n")
