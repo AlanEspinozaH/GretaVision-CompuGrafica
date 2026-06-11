@@ -1,7 +1,7 @@
 """
-GretaVision - pipeline mínimo legible.
+GretaVision - Pipeline
 
-Objetivo:
+Objetivos:
 - cargar imagen
 - preprocesar
 - segmentar posibles grietas
@@ -19,11 +19,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from typing import Dict, Tuple
-
 import os
 import glob
-
-
 import cv2
 import numpy as np
 import pandas as pd
@@ -56,13 +53,7 @@ def decode_uploaded_image(file_bytes: bytes) -> np.ndarray:
 
 
 def preprocess(rgb: np.ndarray, params: GVParams) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Convierte a gris, reduce ruido y mejora contraste con CLAHE.
-
-    Retorna:
-    - gray: imagen en escala de grises
-    - enhanced: imagen gris mejorada
-    """
+    """Convierte a gris, reduce ruido y mejora contraste con CLAHE."""
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
 
     k = ensure_odd(params.blur_ksize)
@@ -74,10 +65,7 @@ def preprocess(rgb: np.ndarray, params: GVParams) -> Tuple[np.ndarray, np.ndarra
 
 
 def segment_adaptive(enhanced: np.ndarray, params: GVParams) -> np.ndarray:
-    """
-    Segmenta grietas candidatas por intensidad.
-    Usa umbral adaptativo inverso porque las grietas suelen ser oscuras.
-    """
+    """Segmenta grietas candidatas mediante umbral adaptativo inverso."""
     block = ensure_odd(params.block_size, minimum=3)
 
     mask = cv2.adaptiveThreshold(
@@ -92,12 +80,7 @@ def segment_adaptive(enhanced: np.ndarray, params: GVParams) -> np.ndarray:
 
 
 def postprocess(mask: np.ndarray, params: GVParams) -> np.ndarray:
-    """
-    Limpia la máscara:
-    - apertura: elimina ruido pequeño
-    - cierre: conecta fragmentos cercanos
-    - filtrado por área mínima
-    """
+    """Limpia la máscara mediante apertura, cierre y filtrado por área mínima."""
     k = max(1, int(params.morph_kernel))
     kernel = np.ones((k, k), np.uint8)
 
@@ -107,7 +90,7 @@ def postprocess(mask: np.ndarray, params: GVParams) -> np.ndarray:
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(closed, connectivity=8)
 
     clean = np.zeros_like(mask)
-    for label_id in range(1, num_labels):  # 0 es fondo
+    for label_id in range(1, num_labels):
         area = stats[label_id, cv2.CC_STAT_AREA]
         if area >= params.min_area:
             clean[labels == label_id] = 255
@@ -116,10 +99,7 @@ def postprocess(mask: np.ndarray, params: GVParams) -> np.ndarray:
 
 
 def estimate_orientation(coords_xy: np.ndarray) -> float:
-    """
-    Estima orientación dominante por PCA.
-    coords_xy: matriz Nx2 con coordenadas [x, y].
-    """
+    """Estima orientación dominante por PCA."""
     if len(coords_xy) < 2:
         return 0.0
 
@@ -132,7 +112,6 @@ def estimate_orientation(coords_xy: np.ndarray) -> float:
     angle_rad = np.arctan2(principal[1], principal[0])
     angle_deg = float(np.degrees(angle_rad))
 
-    # Normaliza a rango [-90, 90]
     if angle_deg > 90:
         angle_deg -= 180
     if angle_deg < -90:
@@ -141,10 +120,7 @@ def estimate_orientation(coords_xy: np.ndarray) -> float:
 
 
 def severity_rule(area_px: int, length_px: int, max_width_px: float) -> str:
-    """
-    Severidad visual simple y configurable.
-    No representa severidad estructural.
-    """
+    """Severidad visual (no estructural) basada en área, longitud y grosor."""
     if area_px < 300 or length_px < 50:
         return "baja"
     if area_px < 1500 and max_width_px < 8:
@@ -153,30 +129,17 @@ def severity_rule(area_px: int, length_px: int, max_width_px: float) -> str:
 
 
 def analyze_components(mask: np.ndarray) -> Tuple[pd.DataFrame, np.ndarray, np.ndarray]:
-    """
-    Analiza cada componente conectada de la máscara.
-
-    Retorna:
-    - dataframe con métricas
-    - labels: matriz con etiqueta de componente por píxel
-    - distance: mapa de distancia para estimar grosor
-    """
+    """Analiza cada componente conectada de la máscara y extrae métricas."""
     binary = (mask > 0).astype(np.uint8)
 
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary, connectivity=8)
-
-    # Distance Transform: valor alto = punto más alejado del borde.
     distance = cv2.distanceTransform(binary, cv2.DIST_L2, 5)
-
-    # Skeletonization: reduce la región a una línea central.
     skeleton = skeletonize(binary.astype(bool))
 
     rows = []
     for label_id in range(1, num_labels):
         component = labels == label_id
 
-        #Obtenemos el area_px con la siguiente linea de codigo
-        #Representa el número de píxeles que pertenecen a la grieta detectada.
         area = int(stats[label_id, cv2.CC_STAT_AREA])
         x = int(stats[label_id, cv2.CC_STAT_LEFT])
         y = int(stats[label_id, cv2.CC_STAT_TOP])
@@ -187,7 +150,6 @@ def analyze_components(mask: np.ndarray) -> Tuple[pd.DataFrame, np.ndarray, np.n
         component_skel = skeleton & component
         length_px = int(np.count_nonzero(component_skel))
 
-        # Grosor local aproximado ≈ 2 * distancia al borde sobre el esqueleto.
         local_widths = 2.0 * distance[component_skel]
         mean_width = float(local_widths.mean()) if local_widths.size else 0.0
         max_width = float(local_widths.max()) if local_widths.size else 0.0
@@ -281,6 +243,7 @@ def run_pipeline(rgb: np.ndarray, params: GVParams):
     df, labels, distance = analyze_components(clean_mask)
     overlay = make_overlay(rgb, clean_mask, params.overlay_alpha)
     heatmap = make_heatmap(rgb, clean_mask, distance)
+    
     return {
         "gray": gray,
         "enhanced": enhanced,
@@ -293,24 +256,13 @@ def run_pipeline(rgb: np.ndarray, params: GVParams):
         "heatmap": heatmap,
     }
 
-
-import os
-import glob
-
 if __name__ == "__main__":
-    # ==========================================
-    # CONFIGURACIÓN DE CARPETAS
-    # ==========================================
     DIR_ENTRADA = "./imagenes_test"
     DIR_SALIDA = "./resultados_pipeline"
 
-    # Crear carpeta de salida si no existe
     os.makedirs(DIR_SALIDA, exist_ok=True)
-
-    # Inicializar los parámetros por defecto de GretaVision
     params = GVParams()
 
-    # Buscar imágenes JPG y PNG
     rutas_imagenes = glob.glob(os.path.join(DIR_ENTRADA, "*.jpg")) + \
                      glob.glob(os.path.join(DIR_ENTRADA, "*.png"))
 
@@ -324,42 +276,28 @@ if __name__ == "__main__":
         nombre_base = os.path.splitext(nombre_archivo)[0]
         print(f"Procesando: {nombre_archivo}")
 
-        # 1. Cargar imagen
-        # OpenCV carga en BGR, pero tu pipeline exige RGB
         bgr = cv2.imread(ruta)
         if bgr is None:
             print(f"  -> Error al leer {nombre_archivo}")
             continue
         
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-
-        # 2. Ejecutar tu pipeline
         resultados = run_pipeline(rgb, params)
 
-        # 3. Guardar las imágenes generadas
-        # Nota: cv2.imwrite requiere BGR, por lo que convertimos las salidas RGB de vuelta a BGR
-        
-        # Original
         cv2.imwrite(os.path.join(DIR_SALIDA, f"{nombre_base}_1_original.jpg"), bgr)
-        
-        # Preprocesada (enhanced es escala de grises, se guarda directo)
         cv2.imwrite(os.path.join(DIR_SALIDA, f"{nombre_base}_2_preprocesada.jpg"), resultados["enhanced"])
-        
-        # Máscara limpia (clean_mask es escala de grises)
         cv2.imwrite(os.path.join(DIR_SALIDA, f"{nombre_base}_3_mascara.jpg"), resultados["clean_mask"])
         
-        # Overlay (Convertir de RGB a BGR para guardar)
         overlay_bgr = cv2.cvtColor(resultados["overlay"], cv2.COLOR_RGB2BGR)
         cv2.imwrite(os.path.join(DIR_SALIDA, f"{nombre_base}_4_overlay.jpg"), overlay_bgr)
         
-        # Heatmap (Convertir de RGB a BGR para guardar)
         heatmap_bgr = cv2.cvtColor(resultados["heatmap"], cv2.COLOR_RGB2BGR)
         cv2.imwrite(os.path.join(DIR_SALIDA, f"{nombre_base}_5_heatmap.jpg"), heatmap_bgr)
 
-        # 4. Guardar Métricas en JSON usando tu función
         json_str = metrics_to_json(resultados["metrics"], nombre_archivo, params)
         ruta_json = os.path.join(DIR_SALIDA, f"{nombre_base}_6_metricas.json")
+        
         with open(ruta_json, "w", encoding="utf-8") as f:
             f.write(json_str)
 
-        print(f"  ->Resultados guardados en {DIR_SALIDA}\n")
+        print(f"  -> Resultados guardados en {DIR_SALIDA}\n")
