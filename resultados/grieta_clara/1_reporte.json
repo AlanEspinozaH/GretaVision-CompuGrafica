@@ -1,0 +1,51 @@
+{
+  "project": "GretaVision",
+  "image_name": "1.png",
+  "unit": "px",
+  "note": "Las métricas son visuales y aproximadas; no son diagnóstico estructural.",
+  "parameters": {
+    "block_size": 31,
+    "C": 5,
+    "blur_ksize": 5,
+    "morph_kernel": 3,
+    "min_area": 250,
+    "min_width": 40,
+    "min_height": 3,
+    "min_aspect_ratio": 2.5,
+    "overlay_alpha": 0.45
+  },
+  "cracks": [
+    {
+      "id": 1,
+      "area_px": 1004,
+      "centroid_x": 172.21,
+      "centroid_y": 140.46,
+      "bbox_x": 150,
+      "bbox_y": 75,
+      "bbox_w": 40,
+      "bbox_h": 142,
+      "bbox_aspect_ratio": 3.55,
+      "length_px": 213,
+      "mean_width_px": 4.56,
+      "max_width_px": 8.0,
+      "orientation_deg": 87.21,
+      "visual_severity": "alta"
+    },
+    {
+      "id": 2,
+      "area_px": 477,
+      "centroid_x": 55.46,
+      "centroid_y": 131.51,
+      "bbox_x": 20,
+      "bbox_y": 121,
+      "bbox_w": 63,
+      "bbox_h": 24,
+      "bbox_aspect_ratio": 2.62,
+      "length_px": 123,
+      "mean_width_px": 3.93,
+      "max_width_px": 8.4,
+      "orientation_deg": -9.21,
+      "visual_severity": "alta"
+    }
+  ]
+}

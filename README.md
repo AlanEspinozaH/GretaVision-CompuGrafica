@@ -138,37 +138,60 @@ GretaVision-CompuGrafica/
 ├── README.md
 ├── .gitignore
 ├── src/
+│   ├── __init__.py
 │   └── pipeline.py
 ├── notebooks/
 │   └── GretaVision_MVP_Colab.ipynb
 ├── data/
 │   └── input/
-│       └── .gitkeep
-├── results/
-│   └── .gitkeep
+│       ├── grieta_clara/
+│       ├── rugosa/
+│       ├── sin_grietas/
+│       └── sombras/
+├── resultados/
+│   ├── grieta_clara/
+│   ├── rugosa/
+│   ├── sin_grietas/
+│   ├── sombras/
+│   └── resultados.md
 └── docs/
-    └── plan_avance.md
+    ├── plan_avance.md
+    └── validacion_cualitativa.md
 ```
 
+Descripción general:
 
+* `data/input/`: contiene las imágenes originales clasificadas por tipo de caso.
+* `resultados/`: contiene las salidas generadas por GretaVision: máscaras, overlays, heatmaps, métricas CSV, reportes JSON y capturas de métricas.
+* `src/pipeline.py`: contiene el pipeline principal de procesamiento, segmentación, postprocesamiento, métricas y visualización.
+* `app_streamlit.py`: contiene la interfaz interactiva de la demo.
+* `docs/`: contiene documentación complementaria del avance y validación cualitativa.
 
 ## 6. Flujo general del pipeline
 
 ```text
 Imagen RGB
 → Escala de grises
-→ Reducción de ruido
-→ Mejora de contraste
+→ Reducción de ruido con filtro de mediana
+→ Mejora de contraste local con CLAHE
 → Umbral adaptativo inverso
 → Operaciones morfológicas
 → Componentes conectados
 → Filtrado geométrico
 → Skeletonization
 → Distance Transform
-→ Métricas
+→ Métricas aproximadas
 → Overlay / Heatmap / Exportación
 ```
 
+El filtrado geométrico considera:
+
+* área mínima de componente;
+* eje mayor mínimo del bounding box;
+* eje menor mínimo del bounding box;
+* relación eje mayor/eje menor mínima.
+
+La relación eje mayor/eje menor se usa para favorecer regiones alargadas sin limitar el sistema únicamente a grietas horizontales. Esto permite conservar grietas verticales o diagonales.
 
 
 ## 7. Distribución de trabajo
@@ -253,87 +276,149 @@ git push origin feature/dataset-docs
 ```
 
 
-## 10. Plan de trabajo restante
+## 10. Validación cualitativa realizada
+
+Se realizó una validación cualitativa con imágenes organizadas en cuatro categorías:
+
+| Categoría      | Descripción                                            | Objetivo de prueba                                             |
+| -------------- | ------------------------------------------------------ | -------------------------------------------------------------- |
+| `grieta_clara` | Imágenes con grietas visibles y buen contraste.        | Verificar detección de regiones alargadas asociadas a grietas. |
+| `rugosa`       | Superficies con textura granular o irregular.          | Evaluar falsos positivos por textura.                          |
+| `sin_grietas`  | Superficies sin grietas evidentes.                     | Verificar que el sistema no detecte componentes innecesarias.  |
+| `sombras`      | Imágenes con sombras, manchas o iluminación irregular. | Evaluar sensibilidad a zonas oscuras no estructurales.         |
 
 
-El alcance propuesto es consolidar un MVP funcional con procesamiento clásico, visualización, métricas y documentación técnica. No se contempla entrenamiento de modelos deep learning ni reconstrucción 3D real.
+Los resultados generados se encuentran en:
 
-### Diagrama de Gantt
-
-```mermaid
-gantt
-    title Plan de trabajo GretaVision - 4 semanas
-    dateFormat  YYYY-MM-DD
-    axisFormat  Semana %W
-
-    section Integrante 1 - Dataset y documentación
-    Recolección de imágenes iniciales        :a1, 2026-06-01, 7d
-    Clasificación de casos de prueba         :a2, after a1, 7d
-    Capturas y evaluación cualitativa        :a3, after a2, 7d
-    Apoyo en presentación final              :a4, after a3, 7d
-
-    section Integrante 2 - Pipeline y métricas
-    Ajuste de segmentación y morfología      :b1, 2026-06-01, 7d
-    Mejora de métricas geométricas           :b2, after b1, 7d
-    Validación con dataset                   :b3, after b2, 7d
-    Correcciones finales del pipeline        :b4, after b3, 7d
-
-    section Integrante 3 - Interfaz e integración
-    Configuración de GitHub y ramas          :c1, 2026-06-01, 7d
-    Mejora de demo Streamlit                 :c2, after c1, 7d
-    Integración en rama dev                  :c3, after c2, 7d
-    Demo final y merge a main                :c4, after c3, 7d
+```text
+resultados/
 ```
 
-> Ajustar las fechas según el calendario real del curso.
+La interpretación cualitativa se documenta en:
+```text
+resultados/resultados.md
+```
+
+En las pruebas realizadas, el sistema funcionó mejor en imágenes con grietas claras y buen contraste. En imágenes sin grietas, algunos casos no generaron componentes candidatas, lo cual es deseable. Las principales limitaciones se observaron en superficies rugosas y en imágenes con sombras, donde aparecieron falsos positivos por textura o iluminación.
+
+No se reportan métricas como precisión, recall, Dice o IoU porque no se cuenta con máscaras manuales de referencia o ground truth pixel a pixel.
+
+## 11. Estado final del MVP
 
 
 
-## 11. Alcance final esperado
+Para la entrega final, el sistema permite:
 
-Para la entrega final, el sistema debe permitir:
 
-* cargar una imagen;
+
+* cargar una imagen de pavimento o concreto;
+
 * ejecutar el pipeline de procesamiento;
-* visualizar máscara, overlay y heatmap;
-* mostrar tabla de métricas;
-* exportar resultados en CSV/JSON;
-* documentar casos exitosos y limitaciones;
-* ejecutar una demo funcional en Streamlit;
-* mantener un repositorio ordenado en GitHub.
+
+* visualizar imagen original, imagen preprocesada, máscara, overlay y heatmap;
+
+* modificar parámetros de preprocesamiento, segmentación, morfología y filtrado geométrico;
+
+* mostrar tabla de métricas por región candidata;
+
+* exportar overlay PNG, máscara PNG, heatmap PNG, métricas CSV y reporte JSON;
+
+* trabajar con un dataset local clasificado en `data/input/`;
+
+* documentar resultados cualitativos y limitaciones;
+
+* ejecutar una demo funcional mediante Streamlit.
 
 
 
 ## 12. Fuera de alcance
 
-Por restricciones de tiempo, quedan fuera del alcance:
+
+
+Por restricciones de tiempo y alcance académico, quedan fuera del proyecto:
+
+
 
 * diagnóstico estructural profesional;
-* medición física en milímetros sin calibración;
+
+* medición física en milímetros o centímetros sin calibración;
+
 * reconstrucción 3D real;
+
 * entrenamiento de modelos deep learning;
+
 * segmentación supervisada con ground truth pixel a pixel;
-* validación cuantitativa exhaustiva.
+
+* validación cuantitativa exhaustiva;
+
+* cálculo de precisión, recall, Dice o IoU sin máscaras de referencia.
 
 
 
-## 13. Convención de commits
+## 13. Limitaciones observadas
+
+
+
+GretaVision segmenta regiones candidatas, no grietas garantizadas.
+
+
+
+Las principales limitaciones observadas fueron:
+
+
+
+* falsos positivos en superficies rugosas;
+
+* sensibilidad a sombras o iluminación irregular;
+
+* detección de manchas oscuras como posibles grietas;
+
+* pérdida de grietas muy finas si los parámetros son demasiado restrictivos;
+
+* dependencia de parámetros como `block_size`, `C`, filtro de mediana y área mínima.
+
+
+
+Las métricas calculadas son aproximadas y se reportan en píxeles. La severidad visual es heurística y no representa severidad estructural.
+
+
+
+## 14. Convención de commits
+
+
 
 Se recomienda usar commits breves y descriptivos:
 
+
+
 ```text
+
 feat: nueva funcionalidad
+
 fix: corrección de error
+
 docs: documentación
+
 refactor: reorganización de código
+
 test: pruebas o casos de evaluación
+
 chore: configuración o cambios menores
+
 ```
+
+
 
 Ejemplos:
 
+
+
 ```bash
+
 git commit -m "feat: agrega filtrado geometrico de componentes conectados"
+
 git commit -m "docs: documenta limitaciones del MVP"
+
 git commit -m "fix: corrige visualizacion del mapa de calor"
+
 ```
