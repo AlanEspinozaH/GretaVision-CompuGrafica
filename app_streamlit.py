@@ -1,4 +1,5 @@
 import streamlit as st
+from pathlib import Path
 
 from src.pipeline import (
     GVParams,
@@ -94,6 +95,8 @@ rgb = decode_uploaded_image(uploaded.getvalue())
 result = run_pipeline(rgb, params)
 df = result["metrics"]
 
+image_stem = Path(uploaded.name).stem
+
 tab_pipeline, tab_metrics, tab_export, tab_limits = st.tabs(
     ["Pipeline visual", "Métricas", "Exportación", "Limitaciones"]
 )
@@ -151,14 +154,44 @@ with tab_export:
     json_data = metrics_to_json(df, uploaded.name, params).encode("utf-8")
 
     c1, c2, c3 = st.columns(3)
+
     with c1:
-        st.download_button("Descargar overlay PNG", overlay_png, "gretavision_overlay.png", "image/png")
-        st.download_button("Descargar máscara PNG", mask_png, "gretavision_mask.png", "image/png")
+        st.download_button(
+            "Descargar overlay PNG",
+            overlay_png,
+            f"{image_stem}_overlay.png",
+            "image/png",
+        )
+
+        st.download_button(
+            "Descargar máscara PNG",
+            mask_png,
+            f"{image_stem}_mask.png",
+            "image/png",
+        )
+
     with c2:
-        st.download_button("Descargar heatmap PNG", heatmap_png, "gretavision_heatmap.png", "image/png")
+        st.download_button(
+            "Descargar heatmap PNG",
+            heatmap_png,
+            f"{image_stem}_heatmap.png",
+            "image/png",
+        )
+
     with c3:
-        st.download_button("Descargar métricas CSV", csv_data, "gretavision_metrics.csv", "text/csv")
-        st.download_button("Descargar reporte JSON", json_data, "gretavision_report.json", "application/json")
+        st.download_button(
+            "Descargar métricas CSV",
+            csv_data,
+            f"{image_stem}_metricas.csv",
+            "text/csv",
+        )
+
+        st.download_button(
+            "Descargar reporte JSON",
+            json_data,
+            f"{image_stem}_reporte.json",
+            "application/json",
+        )
 
 with tab_limits:
     st.subheader("Alcance y limitaciones del MVP")
