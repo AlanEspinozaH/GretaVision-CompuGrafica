@@ -1,0 +1,3 @@
+id,area_px,centroid_x,centroid_y,bbox_x,bbox_y,bbox_w,bbox_h,bbox_aspect_ratio,length_px,mean_width_px,max_width_px,orientation_deg,visual_severity
+1,1004,172.21,140.46,150,75,40,142,3.55,213,4.56,8.0,87.21,alta
+2,477,55.46,131.51,20,121,63,24,2.62,123,3.93,8.4,-9.21,alta

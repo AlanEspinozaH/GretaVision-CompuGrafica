@@ -1,0 +1,67 @@
+{
+  "project": "GretaVision",
+  "image_name": "5.png",
+  "unit": "px",
+  "note": "Las métricas son visuales y aproximadas; no son diagnóstico estructural.",
+  "parameters": {
+    "block_size": 31,
+    "C": 5,
+    "blur_ksize": 5,
+    "morph_kernel": 3,
+    "min_area": 250,
+    "min_width": 40,
+    "min_height": 3,
+    "min_aspect_ratio": 2.5,
+    "overlay_alpha": 0.45
+  },
+  "cracks": [
+    {
+      "id": 1,
+      "area_px": 299,
+      "centroid_x": 94.06,
+      "centroid_y": 48.56,
+      "bbox_x": 69,
+      "bbox_y": 37,
+      "bbox_w": 53,
+      "bbox_h": 19,
+      "bbox_aspect_ratio": 2.79,
+      "length_px": 59,
+      "mean_width_px": 4.95,
+      "max_width_px": 7.19,
+      "orientation_deg": 12.3,
+      "visual_severity": "baja"
+    },
+    {
+      "id": 2,
+      "area_px": 341,
+      "centroid_x": 32.26,
+      "centroid_y": 45.32,
+      "bbox_x": 0,
+      "bbox_y": 39,
+      "bbox_w": 67,
+      "bbox_h": 17,
+      "bbox_aspect_ratio": 3.94,
+      "length_px": 72,
+      "mean_width_px": 4.6,
+      "max_width_px": 6.0,
+      "orientation_deg": -3.57,
+      "visual_severity": "media"
+    },
+    {
+      "id": 3,
+      "area_px": 1519,
+      "centroid_x": 105.26,
+      "centroid_y": 102.81,
+      "bbox_x": 0,
+      "bbox_y": 83,
+      "bbox_w": 203,
+      "bbox_h": 40,
+      "bbox_aspect_ratio": 5.08,
+      "length_px": 272,
+      "mean_width_px": 5.4,
+      "max_width_px": 10.79,
+      "orientation_deg": 7.84,
+      "visual_severity": "alta"
+    }
+  ]
+}

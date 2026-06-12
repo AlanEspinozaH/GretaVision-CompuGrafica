@@ -1,0 +1,18 @@
+{
+  "project": "GretaVision",
+  "image_name": "9.png",
+  "unit": "px",
+  "note": "Las métricas son visuales y aproximadas; no son diagnóstico estructural.",
+  "parameters": {
+    "block_size": 31,
+    "C": 5,
+    "blur_ksize": 5,
+    "morph_kernel": 3,
+    "min_area": 250,
+    "min_width": 40,
+    "min_height": 3,
+    "min_aspect_ratio": 2.5,
+    "overlay_alpha": 0.45
+  },
+  "cracks": []
+}
