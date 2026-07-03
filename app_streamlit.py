@@ -146,7 +146,7 @@ image_stem = Path(uploaded.name).stem
 tab_pipeline, tab_pedagogy, tab_metrics, tab_export, tab_limits = st.tabs(
     [
         "Pipeline visual",
-        "Vitrina pedagógica",
+        "Explorador del Pipeline",
         "Métricas",
         "Exportación",
         "Limitaciones",
@@ -180,7 +180,7 @@ with tab_pipeline:
     )
 
 with tab_pedagogy:
-    st.subheader("Vitrina pedagógica")
+    st.subheader("Explorador del Pipeline")
     st.write(
         "Explora las etapas reales del pipeline que segmenta regiones candidatas "
         "a grietas. Esta vista explica el procesamiento; no constituye un "

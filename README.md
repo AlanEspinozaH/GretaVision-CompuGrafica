@@ -52,6 +52,15 @@ El sistema busca demostrar:
   * máscara refinada;
   * overlay;
   * mapa de calor.
+* Pestaña **Explorador del Pipeline** para inspeccionar las siete etapas reales del pipeline:
+
+  1. escala de grises;
+  2. filtro de mediana;
+  3. CLAHE;
+  4. umbral adaptativo;
+  5. morfología;
+  6. componentes conectados;
+  7. esqueleto y grosor.
 * Exportación:
 
   * overlay PNG;
@@ -104,7 +113,19 @@ Activar entorno virtual en Windows:
 Instalar dependencias:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+```
+
+Instalar las dependencias exclusivas de desarrollo para ejecutar las pruebas:
+
+```bash
+python -m pip install -r requirements-dev.txt
+```
+
+Ejecutar las pruebas:
+
+```bash
+python -m pytest -q
 ```
 
 Ejecutar la aplicación:
@@ -135,11 +156,17 @@ Esta opción se recomienda para validar rápidamente el pipeline sin instalar de
 GretaVision-CompuGrafica/
 ├── app_streamlit.py
 ├── requirements.txt
+├── requirements-dev.txt
 ├── README.md
 ├── .gitignore
 ├── src/
 │   ├── __init__.py
-│   └── pipeline.py
+│   ├── pipeline.py
+│   └── pedagogy.py
+├── tests/
+│   ├── test_pipeline_regression.py
+│   ├── test_pipeline_stages.py
+│   └── test_pedagogy.py
 ├── notebooks/
 │   └── GretaVision_MVP_Colab.ipynb
 ├── data/
@@ -164,7 +191,9 @@ Descripción general:
 * `data/input/`: contiene las imágenes originales clasificadas por tipo de caso.
 * `resultados/`: contiene las salidas generadas por GretaVision: máscaras, overlays, heatmaps, métricas CSV, reportes JSON y capturas de métricas.
 * `src/pipeline.py`: contiene el pipeline principal de procesamiento, segmentación, postprocesamiento, métricas y visualización.
+* `src/pedagogy.py`: contiene exclusivamente los textos pedagógicos y las visualizaciones deterministas de componentes y esqueleto.
 * `app_streamlit.py`: contiene la interfaz interactiva de la demo.
+* `tests/`: contiene las pruebas de caracterización, etapas intermedias y visualizaciones pedagógicas.
 * `docs/`: contiene documentación complementaria del avance y validación cualitativa.
 
 ## 6. Flujo general del pipeline
@@ -192,6 +221,22 @@ El filtrado geométrico considera:
 * relación eje mayor/eje menor mínima.
 
 La relación eje mayor/eje menor se usa para favorecer regiones alargadas sin limitar el sistema únicamente a grietas horizontales. Esto permite conservar grietas verticales o diagonales.
+
+### Explorador del Pipeline
+
+La pestaña **Explorador del Pipeline** reutiliza los resultados de la misma ejecución del
+pipeline para mostrar sus siete etapas: escala de grises, filtro de mediana, CLAHE,
+umbral adaptativo, morfología, componentes conectados, y esqueleto y grosor. Esta
+vista no duplica las operaciones de procesamiento ni modifica el algoritmo o sus
+resultados.
+
+Las métricas y visualizaciones deben interpretarse dentro del alcance académico del
+proyecto:
+
+* `length_px` representa la longitud aproximada del esqueleto en píxeles, no una longitud euclidiana exacta.
+* El heatmap muestra distancia relativa a la frontera y no unidades físicas.
+* El grosor estimado es relativo y requiere calibración para obtener medidas físicas.
+* GretaVision muestra regiones candidatas a grietas y no realiza diagnóstico estructural.
 
 
 ## 7. Distribución de trabajo
