@@ -4,6 +4,7 @@ from pathlib import Path
 import cv2
 import streamlit as st
 
+from src.exporting import build_export_zip
 from src.pedagogy import (
     STAGE_EXPLANATIONS,
     make_components_visualization,
@@ -365,6 +366,14 @@ with tab_export:
     heatmap_png = encode_png(result["heatmap"])
     csv_data = df.to_csv(index=False).encode("utf-8")
     json_data = metrics_to_json(df, uploaded.name, params).encode("utf-8")
+    zip_data, zip_name = build_export_zip(
+        uploaded.name,
+        overlay_png,
+        mask_png,
+        heatmap_png,
+        csv_data,
+        json_data,
+    )
 
     c1, c2, c3 = st.columns(3)
 
@@ -405,6 +414,13 @@ with tab_export:
             f"{image_stem}_reporte.json",
             "application/json",
         )
+
+    st.download_button(
+        "Descargar paquete completo ZIP",
+        zip_data,
+        zip_name,
+        "application/zip",
+    )
 
 with tab_limits:
     st.subheader("Alcance y limitaciones del MVP")
