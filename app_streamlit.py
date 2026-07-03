@@ -4,10 +4,15 @@ from pathlib import Path
 import cv2
 import streamlit as st
 
+from src.pedagogy import (
+    STAGE_EXPLANATIONS,
+    make_components_visualization,
+    make_skeleton_visualization,
+)
 from src.pipeline import (
     GVParams,
     decode_uploaded_image,
-    run_pipeline,
+    run_pipeline_with_stages,
     encode_png,
     metrics_to_json,
 )
@@ -111,7 +116,7 @@ if uploaded is None:
 
 try:
     rgb = decode_uploaded_image(uploaded.getvalue())
-    result = run_pipeline(rgb, params)
+    result, stages = run_pipeline_with_stages(rgb, params)
 except ValueError as exc:
     st.error(str(exc))
     st.stop()
@@ -138,8 +143,14 @@ st.caption(
 
 image_stem = Path(uploaded.name).stem
 
-tab_pipeline, tab_metrics, tab_export, tab_limits = st.tabs(
-    ["Pipeline visual", "Métricas", "Exportación", "Limitaciones"]
+tab_pipeline, tab_pedagogy, tab_metrics, tab_export, tab_limits = st.tabs(
+    [
+        "Pipeline visual",
+        "Vitrina pedagógica",
+        "Métricas",
+        "Exportación",
+        "Limitaciones",
+    ]
 )
 
 with tab_pipeline:
@@ -167,6 +178,152 @@ with tab_pipeline:
         "Los colores representan valores relativos de distancia al borde dentro de la imagen. "
         "No corresponden a una medida física."
     )
+
+with tab_pedagogy:
+    st.subheader("Vitrina pedagógica")
+    st.write(
+        "Explora las etapas reales del pipeline que segmenta regiones candidatas "
+        "a grietas. Esta vista explica el procesamiento; no constituye un "
+        "diagnóstico estructural."
+    )
+    st.info("Modifica los parámetros en la barra lateral para observar su efecto.")
+
+    etapa = st.selectbox(
+        "Selecciona una etapa",
+        [
+            "Escala de grises",
+            "Filtro de mediana",
+            "CLAHE",
+            "Umbral adaptativo",
+            "Morfología",
+            "Componentes conectados",
+            "Esqueleto y grosor",
+        ],
+    )
+    explanation = STAGE_EXPLANATIONS[etapa]
+
+    parameter_values = {
+        "Escala de grises": "Ninguno; conversión fija RGB → escala de grises.",
+        "Filtro de mediana": f"blur_ksize = {params.blur_ksize}",
+        "CLAHE": "clipLimit = 2.0 · tileGridSize = 8 × 8 (valores fijos)",
+        "Umbral adaptativo": (
+            f"block_size = {params.block_size} · C = {params.C}"
+        ),
+        "Morfología": f"morph_kernel = {params.morph_kernel}",
+        "Componentes conectados": (
+            f"min_area = {params.min_area} px² · "
+            f"min_width = {params.min_width} px · "
+            f"min_height = {params.min_height} px · "
+            f"min_aspect_ratio = {params.min_aspect_ratio:.1f}"
+        ),
+        "Esqueleto y grosor": (
+            "Sin parámetro interactivo propio; deriva de la máscara limpia."
+        ),
+    }
+
+    st.markdown(f"### {explanation.title}")
+    st.markdown(f"**Valor actual del parámetro:** {parameter_values[etapa]}")
+
+    if etapa == "Escala de grises":
+        c1, c2 = st.columns(2)
+        with c1:
+            st.caption("Entrada: imagen RGB")
+            st.image(rgb, use_container_width=True)
+        with c2:
+            st.caption("Resultado: matriz de intensidad")
+            st.image(result["gray"], clamp=True, use_container_width=True)
+
+    elif etapa == "Filtro de mediana":
+        c1, c2 = st.columns(2)
+        with c1:
+            st.caption("Entrada: escala de grises")
+            st.image(result["gray"], clamp=True, use_container_width=True)
+        with c2:
+            st.caption("Resultado: reducción de ruido")
+            st.image(stages.denoised, clamp=True, use_container_width=True)
+
+    elif etapa == "CLAHE":
+        c1, c2 = st.columns(2)
+        with c1:
+            st.caption("Entrada: imagen sin ruido impulsivo")
+            st.image(stages.denoised, clamp=True, use_container_width=True)
+        with c2:
+            st.caption("Resultado: contraste local mejorado")
+            st.image(result["enhanced"], clamp=True, use_container_width=True)
+
+    elif etapa == "Umbral adaptativo":
+        c1, c2 = st.columns(2)
+        with c1:
+            st.caption("Entrada: imagen con contraste local")
+            st.image(result["enhanced"], clamp=True, use_container_width=True)
+        with c2:
+            st.caption("Resultado: máscara binaria inicial")
+            st.image(result["raw_mask"], clamp=True, use_container_width=True)
+
+    elif etapa == "Morfología":
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.caption("Máscara inicial")
+            st.image(result["raw_mask"], clamp=True, use_container_width=True)
+        with c2:
+            st.caption("Apertura")
+            st.image(stages.opened, clamp=True, use_container_width=True)
+        with c3:
+            st.caption("Cierre")
+            st.image(stages.closed, clamp=True, use_container_width=True)
+        st.caption(
+            "En esta etapa todavía no se ha aplicado el filtrado geométrico "
+            "de componentes."
+        )
+
+    elif etapa == "Componentes conectados":
+        components_view = make_components_visualization(
+            rgb,
+            result["labels"],
+            df,
+        )
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.caption("Entrada: máscara posterior a morfología")
+            st.image(stages.closed, clamp=True, use_container_width=True)
+        with c2:
+            st.caption("Máscara limpia")
+            st.image(result["clean_mask"], clamp=True, use_container_width=True)
+        with c3:
+            st.caption("Componentes retenidas y bounding boxes")
+            st.image(components_view, use_container_width=True)
+        if df.empty:
+            st.info("No hay componentes retenidas con los parámetros actuales.")
+
+    elif etapa == "Esqueleto y grosor":
+        skeleton_view = make_skeleton_visualization(rgb, stages.skeleton)
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.caption("Máscara limpia")
+            st.image(result["clean_mask"], clamp=True, use_container_width=True)
+        with c2:
+            st.caption("Eje central aproximado")
+            st.image(skeleton_view, use_container_width=True)
+        with c3:
+            st.caption("Mapa relativo de grosor estimado")
+            st.image(result["heatmap"], use_container_width=True)
+        st.caption(
+            "length_px es un conteo de píxeles del esqueleto, no una longitud "
+            "euclidiana exacta. El heatmap no representa unidades físicas y sus "
+            "colores se normalizan dentro de cada imagen."
+        )
+
+    st.markdown("#### Concepto aplicado")
+    st.write(explanation.concept)
+    st.markdown("#### Qué ocurre")
+    st.write(explanation.what_happens)
+    st.markdown("#### Por qué se utiliza")
+    st.write(explanation.why_used)
+    st.markdown("#### Qué observar")
+    st.write(explanation.what_to_observe)
+    st.markdown("#### Limitación")
+    st.write(explanation.limitation)
+
 
 with tab_metrics:
     st.subheader("Regiones candidatas a grietas")
