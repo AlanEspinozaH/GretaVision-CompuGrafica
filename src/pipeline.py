@@ -24,7 +24,7 @@ class GVParams:
     C: int = 5
     blur_ksize: int = 5
     morph_kernel: int = 3
-    min_area: int = 80
+    min_area: int = 250
     min_width: int = 40          # eje mayor mínimo del bounding box
     min_height: int = 3          # eje menor mínimo del bounding box
     min_aspect_ratio: float = 2.5
@@ -36,7 +36,43 @@ def ensure_odd(value: int, minimum: int = 3) -> int:
     return value if value % 2 == 1 else value + 1
 
 
+def validate_params(params: GVParams) -> None:
+    if params.block_size < 3:
+        raise ValueError("block_size debe ser mayor o igual que 3.")
+    if params.blur_ksize < 1:
+        raise ValueError("blur_ksize debe ser mayor o igual que 1.")
+    if params.morph_kernel < 1:
+        raise ValueError("morph_kernel debe ser mayor o igual que 1.")
+    if params.min_area < 0:
+        raise ValueError("min_area debe ser mayor o igual que 0.")
+    if params.min_width < 1:
+        raise ValueError("min_width debe ser mayor o igual que 1.")
+    if params.min_height < 1:
+        raise ValueError("min_height debe ser mayor o igual que 1.")
+    if params.min_aspect_ratio < 1.0:
+        raise ValueError("min_aspect_ratio debe ser mayor o igual que 1.0.")
+    if not 0.0 <= params.overlay_alpha <= 1.0:
+        raise ValueError("overlay_alpha debe estar entre 0.0 y 1.0.")
+
+
+def validate_rgb_image(rgb: np.ndarray) -> None:
+    if not isinstance(rgb, np.ndarray):
+        raise ValueError("La imagen debe ser un array de NumPy.")
+    if rgb.size == 0:
+        raise ValueError("La imagen no puede estar vacía.")
+    if rgb.ndim != 3 or rgb.shape[2] != 3:
+        raise ValueError("La imagen debe tener forma H x W x 3 (RGB).")
+    if rgb.shape[0] <= 0 or rgb.shape[1] <= 0:
+        raise ValueError("El alto y el ancho de la imagen deben ser mayores que cero.")
+    if rgb.dtype != np.uint8:
+        raise ValueError("La imagen debe tener tipo uint8.")
+
+
 def decode_uploaded_image(file_bytes: bytes) -> np.ndarray:
+    if file_bytes is None:
+        raise ValueError("No se recibió contenido de imagen.")
+    if not file_bytes:
+        raise ValueError("El archivo de imagen está vacío.")
     arr = np.frombuffer(file_bytes, np.uint8)
     bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if bgr is None:
@@ -230,6 +266,8 @@ def metrics_to_json(df: pd.DataFrame, image_name: str, params: GVParams) -> str:
 
 
 def run_pipeline(rgb: np.ndarray, params: GVParams):
+    validate_params(params)
+    validate_rgb_image(rgb)
     gray, enhanced = preprocess(rgb, params)
     raw_mask = segment_adaptive(enhanced, params)
     clean_mask = postprocess(raw_mask, params)

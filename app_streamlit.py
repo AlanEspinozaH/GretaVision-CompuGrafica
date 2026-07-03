@@ -1,5 +1,8 @@
-import streamlit as st
+import logging
 from pathlib import Path
+
+import cv2
+import streamlit as st
 
 from src.pipeline import (
     GVParams,
@@ -8,6 +11,9 @@ from src.pipeline import (
     encode_png,
     metrics_to_json,
 )
+
+logger = logging.getLogger(__name__)
+defaults = GVParams()
 
 st.set_page_config(
     page_title="GretaVision | MVP",
@@ -38,20 +44,30 @@ with st.sidebar:
     )
 
     st.header("Preprocesamiento")
-    blur_ksize = st.slider("Filtro mediana", 3, 15, 5, step=2)
+    blur_ksize = st.slider("Filtro mediana", 3, 15, defaults.blur_ksize, step=2)
 
     st.header("Segmentación")
-    block_size = st.slider("Block size", 3, 99, 31, step=2)
-    C = st.slider("Constante C", -15, 25, 5, step=1)
-    morph_kernel = st.slider("Kernel morfológico", 1, 9, 3, step=1)
+    block_size = st.slider("Block size", 3, 99, defaults.block_size, step=2)
+    C = st.slider("Constante C", -15, 25, defaults.C, step=1)
+    morph_kernel = st.slider(
+        "Kernel morfológico",
+        1,
+        9,
+        defaults.morph_kernel,
+        step=2,
+        help=(
+            "Valores mayores eliminan más ruido, pero también pueden borrar "
+            "regiones candidatas muy finas."
+        ),
+    )
 
     st.header("Filtros geométricos")
-    min_area = st.slider("Área mínima (px)", 0, 5000, 250, step=25)
+    min_area = st.slider("Área mínima (px²)", 0, 5000, defaults.min_area, step=25)
     min_width = st.slider(
         "Eje mayor mínimo del bounding box (px)",
         min_value=1,
         max_value=300,
-        value=40,
+        value=defaults.min_width,
         step=1,
         help="Filtra componentes demasiado cortas, sin favorecer solo grietas horizontales.",
     )
@@ -59,7 +75,7 @@ with st.sidebar:
         "Eje menor mínimo del bounding box (px)",
         min_value=1,
         max_value=100,
-        value=3,
+        value=defaults.min_height,
         step=1,
         help="Evita aceptar componentes extremadamente delgadas o ruido aislado.",
     )
@@ -67,13 +83,15 @@ with st.sidebar:
         "Relación eje mayor/eje menor mínima",
         min_value=1.0,
         max_value=15.0,
-        value=2.5,
+        value=defaults.min_aspect_ratio,
         step=0.1,
         help="Favorece regiones alargadas, típicas de grietas candidatas.",
     )
 
     st.header("Visualización")
-    overlay_alpha = st.slider("Opacidad del overlay", 0.05, 0.95, 0.45, step=0.05)
+    overlay_alpha = st.slider(
+        "Opacidad del overlay", 0.05, 0.95, defaults.overlay_alpha, step=0.05
+    )
 
 params = GVParams(
     block_size=block_size,
@@ -91,9 +109,32 @@ if uploaded is None:
     st.info("Sube una imagen PNG, JPG o JPEG para ejecutar el pipeline.")
     st.stop()
 
-rgb = decode_uploaded_image(uploaded.getvalue())
-result = run_pipeline(rgb, params)
+try:
+    rgb = decode_uploaded_image(uploaded.getvalue())
+    result = run_pipeline(rgb, params)
+except ValueError as exc:
+    st.error(str(exc))
+    st.stop()
+except cv2.error:
+    logger.exception("OpenCV no pudo procesar la imagen")
+    st.error("OpenCV no pudo procesar la imagen con los parámetros actuales.")
+    st.stop()
+except MemoryError:
+    logger.exception("Memoria insuficiente al procesar la imagen")
+    st.error("No hay memoria suficiente para procesar esta imagen.")
+    st.stop()
+except Exception:
+    logger.exception("Error inesperado al procesar la imagen")
+    st.error("Ocurrió un error inesperado al procesar la imagen.")
+    st.stop()
+
 df = result["metrics"]
+height, width, channels = rgb.shape
+
+st.caption(
+    f"Dimensiones: {width} × {height} px · Canales: {channels} (RGB) · "
+    f"Tipo de dato: {rgb.dtype} · Métricas: píxeles; áreas expresadas en px²"
+)
 
 image_stem = Path(uploaded.name).stem
 
@@ -120,11 +161,15 @@ with tab_pipeline:
         st.caption("Overlay sobre imagen original")
         st.image(result["overlay"], use_container_width=True)
 
-    st.caption("Mapa de calor por grosor estimado")
+    st.caption("Mapa relativo de grosor estimado")
     st.image(result["heatmap"], use_container_width=True)
+    st.caption(
+        "Los colores representan valores relativos de distancia al borde dentro de la imagen. "
+        "No corresponden a una medida física."
+    )
 
 with tab_metrics:
-    st.subheader("Métricas de regiones candidatas")
+    st.subheader("Regiones candidatas a grietas")
 
     if df.empty:
         st.warning(
@@ -134,11 +179,22 @@ with tab_metrics:
     else:
         col_a, col_b, col_c = st.columns(3)
         col_a.metric("Componentes", len(df))
-        col_b.metric("Área total detectada (px)", int(df["area_px"].sum()))
-        col_c.metric("Longitud total estimada (px)", int(df["length_px"].sum()))
-        st.dataframe(df, use_container_width=True)
+        col_b.metric("Área total candidata (px²)", int(df["area_px"].sum()))
+        col_c.metric(
+            "Longitud aproximada total del esqueleto (px)",
+            int(df["length_px"].sum()),
+        )
+        st.dataframe(
+            df,
+            column_config={
+                "mean_width_px": "Grosor medio estimado (px)",
+                "max_width_px": "Grosor máximo estimado (px)",
+                "visual_severity": "Clasificación visual heurística",
+            },
+            use_container_width=True,
+        )
 
-        st.subheader("Resumen por severidad visual")
+        st.subheader("Clasificación visual heurística")
         st.dataframe(
             df["visual_severity"].value_counts().rename_axis("severidad").reset_index(name="cantidad"),
             use_container_width=True,
